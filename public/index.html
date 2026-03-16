@@ -1064,20 +1064,54 @@ function renderArticleViewer(article) {
   const feedTitle = article.feedTitle || '';
   const byline = [article.author, article.pubDate ? formatDate(article.pubDate, true) : ''].filter(Boolean).join(' · ');
 
-  const bodyHtml = article.content
+  const rssFallback = article.content
     ? sanitizeHtml(article.content)
     : article.summary
       ? `<p>${escHtml(article.summary)}</p>`
-      : '<p style="color:var(--text-dim)">No content available. Open the article in your browser to read it.</p>';
+      : '';
 
   content.innerHTML = `
     ${feedTitle ? `<div id="article-viewer-feed-tag">${escHtml(feedTitle)}</div>` : ''}
     <h1 id="article-viewer-title">${escHtml(article.title)}</h1>
     ${byline ? `<div id="article-viewer-date">${escHtml(byline)}</div>` : ''}
-    <div id="article-viewer-body">${bodyHtml}</div>
+    <div id="article-viewer-body">
+      ${rssFallback || '<div id="article-loading" style="color:var(--text-dim);font-size:13px;">Loading full article…</div>'}
+    </div>
   `;
 
   document.getElementById('article-viewer-scroll').scrollTop = 0;
+
+  // Fetch the full article in the background if we have a URL
+  if (article.link) fetchFullArticle(article, byline);
+}
+
+async function fetchFullArticle(article, byline) {
+  const renderingArticle = activeArticle;
+  try {
+    const token = await getToken();
+    const res = await fetch(`/api/article?url=${encodeURIComponent(article.link)}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+
+    const data = await res.json();
+    if (!data.content) return;
+
+    // Only update if the user hasn't navigated away
+    if (activeArticle !== renderingArticle) return;
+
+    const body = document.getElementById('article-viewer-body');
+    if (!body) return;
+
+    const fullByline = [data.byline || article.author, article.pubDate ? formatDate(article.pubDate, true) : '']
+      .filter(Boolean).join(' · ');
+    const dateEl = document.getElementById('article-viewer-date');
+    if (dateEl && fullByline) dateEl.textContent = fullByline;
+
+    body.innerHTML = sanitizeHtml(data.content);
+  } catch {
+    // Silently keep whatever was already rendered
+  }
 }
 
 async function toggleRead(article) {

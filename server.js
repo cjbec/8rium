@@ -5,6 +5,8 @@ const Parser = require('rss-parser');
 const cors = require('cors');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
+const { Readability } = require('@mozilla/readability');
+const { JSDOM } = require('jsdom');
 
 const app = express();
 const parser = new Parser({
@@ -87,6 +89,39 @@ app.get('/api/proxy', requireAuth, async (req, res) => {
     res.json({ title: feed.title, items });
   } catch (err) {
     res.status(400).json({ error: `Failed to fetch feed: ${err.message}` });
+  }
+});
+
+// ── Full article extractor (Readability) ──────────────────────────────────────
+app.get('/api/article', requireAuth, async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'url is required' });
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; RSSReader/1.0)',
+        'Accept': 'text/html,application/xhtml+xml',
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!response.ok) return res.status(502).json({ error: `Fetch failed: ${response.status}` });
+
+    const html = await response.text();
+    const dom = new JSDOM(html, { url });
+    const reader = new Readability(dom.window.document);
+    const article = reader.parse();
+
+    if (!article) return res.status(422).json({ error: 'Could not extract article content' });
+
+    res.json({
+      title: article.title,
+      content: article.content,
+      byline: article.byline,
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
