@@ -90,6 +90,11 @@ app.get('/api/proxy', requireAuth, async (req, res) => {
   }
 });
 
+// Explicit fallback so `express.static` path issues don't produce "Cannot GET /"
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 const PORT = process.env.PORT || 3737;
 app.listen(PORT, () => {
   console.log(`RSS Reader running at http://localhost:${PORT}`);
