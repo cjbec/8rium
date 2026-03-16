@@ -1,0 +1,8 @@
+# Environment variables — NEVER commit this
+.env
+
+# Dependencies — install with `npm install`
+node_modules/
+
+# macOS
+.DS_Store
