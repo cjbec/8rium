@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RSS Reader</title>
+  <title>8rium</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -590,6 +590,64 @@
     }
 
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Mobile ──────────────────────────────────────────────────────────── */
+    .mobile-only { display: none; }
+
+    @media (max-width: 767px) {
+      .mobile-only { display: flex; }
+
+      /* Sidebar becomes a slide-in drawer */
+      #sidebar {
+        position: fixed;
+        top: 0; left: 0;
+        height: 100%;
+        width: 82%;
+        max-width: 300px;
+        z-index: 200;
+        transform: translateX(-100%);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 8px 0 32px rgba(0, 0, 0, 0.6);
+      }
+
+      #sidebar.mobile-open { transform: translateX(0); }
+
+      /* Dark overlay behind open drawer */
+      #sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        z-index: 199;
+      }
+
+      #sidebar-overlay.mobile-open { display: block; }
+
+      /* Article list fills the screen */
+      #article-list-pane {
+        width: 100%;
+        min-width: 100%;
+      }
+
+      /* Article viewer slides in from right, covers full screen */
+      #article-viewer {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        background: var(--bg);
+        transform: translateX(100%);
+        transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      #article-viewer.mobile-visible { transform: translateX(0); }
+
+      /* Tighter spacing on small screens */
+      #article-list-header { gap: 8px; }
+      #article-viewer-header { padding: 12px 16px; gap: 8px; flex-wrap: wrap; }
+      #article-viewer-scroll { padding: 20px 20px 48px; }
+      #article-viewer-title  { font-size: 20px; }
+      #article-viewer-content { max-width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -598,7 +656,7 @@
 <div id="auth-screen">
   <div id="auth-card">
     <div id="auth-logo">📡</div>
-    <h2 id="auth-title">RSS Reader</h2>
+    <h2 id="auth-title">8rium</h2>
     <p id="auth-subtitle">Your personal feed reader</p>
 
     <div class="auth-tabs">
@@ -625,12 +683,13 @@
 
 <!-- ── App ────────────────────────────────────────────────────────────────── -->
 <div id="app">
+  <div id="sidebar-overlay" onclick="closeSidebar()"></div>
   <div class="app-layout">
 
     <!-- Sidebar -->
     <div id="sidebar">
       <div id="sidebar-header">
-        <h1><span>📡</span> RSS Reader</h1>
+        <h1><span>📡</span> 8rium</h1>
         <form id="add-feed-form">
           <input id="feed-url-input" type="url" placeholder="Paste feed URL…" autocomplete="off" required />
           <button type="submit" id="add-feed-btn" title="Add Feed">+</button>
@@ -656,6 +715,7 @@
     <!-- Article list pane -->
     <div id="article-list-pane">
       <div id="article-list-header">
+        <button class="icon-btn mobile-only" id="mobile-menu-btn" onclick="openSidebar()" title="Feeds">☰</button>
         <span id="article-list-title">All Articles</span>
         <div id="article-list-actions">
           <button class="icon-btn" id="refresh-btn" onclick="loadArticles()">↻</button>
@@ -674,6 +734,7 @@
     <!-- Article viewer -->
     <div id="article-viewer">
       <div id="article-viewer-header">
+        <button class="icon-btn mobile-only" id="mobile-back-btn" onclick="showMobileList()">← Back</button>
         <button id="article-open-btn">Open in Browser</button>
         <button id="article-toggle-read-btn">Mark Unread</button>
       </div>
@@ -777,7 +838,11 @@ async function submitAuth(e) {
 
   try {
     if (authMode === 'signup') {
-      const { error } = await sb.auth.signUp({ email, password });
+      const { error } = await sb.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: window.location.origin },
+      });
       if (error) throw error;
       document.getElementById('auth-success').textContent =
         'Account created! Check your email to confirm your address, then sign in.';
@@ -892,6 +957,7 @@ function selectFeed(id) {
   renderFeedList();
   const feed = feeds.find(f => f.id === id);
   document.getElementById('article-list-title').textContent = feed ? feed.title : 'All Articles';
+  if (isMobile()) closeSidebar();
   loadArticles();
 }
 
@@ -1047,6 +1113,7 @@ function selectArticle(article) {
 
   renderArticleList();
   renderArticleViewer(article);
+  if (isMobile()) document.getElementById('article-viewer').classList.add('mobile-visible');
 }
 
 function renderArticleViewer(article) {
@@ -1188,6 +1255,23 @@ function toast(msg, type = 'info', duration = 3000) {
   el.textContent = msg;
   document.getElementById('toast-container').appendChild(el);
   setTimeout(() => el.remove(), duration);
+}
+
+// ── Mobile navigation ──────────────────────────────────────────────────────────
+function isMobile() { return window.innerWidth <= 767; }
+
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('mobile-open');
+  document.getElementById('sidebar-overlay').classList.add('mobile-open');
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('sidebar-overlay').classList.remove('mobile-open');
+}
+
+function showMobileList() {
+  document.getElementById('article-viewer').classList.remove('mobile-visible');
 }
 
 // ── Event listeners ────────────────────────────────────────────────────────────

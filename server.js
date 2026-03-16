@@ -11,7 +11,7 @@ const { JSDOM } = require('jsdom');
 const app = express();
 const parser = new Parser({
   timeout: 10000,
-  headers: { 'User-Agent': 'RSS Reader/1.0' },
+  headers: { 'User-Agent': '8rium/1.0' },
 });
 
 // Supabase admin client — lazily initialized so the server starts without a .env
@@ -100,7 +100,7 @@ app.get('/api/article', requireAuth, async (req, res) => {
   try {
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; RSSReader/1.0)',
+        'User-Agent': 'Mozilla/5.0 (compatible; 8rium/1.0)',
         'Accept': 'text/html,application/xhtml+xml',
       },
       signal: AbortSignal.timeout(10000),
@@ -132,5 +132,5 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 3737;
 app.listen(PORT, () => {
-  console.log(`RSS Reader running at http://localhost:${PORT}`);
+  console.log(`8rium running at http://localhost:${PORT}`);
 });
